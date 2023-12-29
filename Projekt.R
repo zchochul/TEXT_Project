@@ -15,19 +15,6 @@ pos <- parts_of_speech %>%
 
 
 
-pos_freq<-function(book)
-{
-    f<-book%>%left_join(pos) %>%
-    count(pos, sort = T) %>%
-    mutate(nn = n / sum(n))
-  
-  return(f)
-}
-
-
-
-
-
 Shak_id <- c(2245, 2239, 1777, 2243, 2242, 1785, 1781, 2265, 2267, 1791, 1794, 1795, 2268, 1797)
 Shak <- gutenberg_download(Shak_id)
 
@@ -37,46 +24,75 @@ Aust <- gutenberg_download(c(1212, 946, 42671, 141, 158))
 
 Aust_tit<-c("Love and Freindship", "Lady Susan", "Pride and Prejudice", "Mansfield Park", "Emma")
 
-Dick <- gutenberg_download(c(675, 19337, 653, 678, 676, 821, 644, 42232, 699, 786, 1422, 1415, 809, 1394))
 
-Dick_tit<-c("American Notes for General Circulation", "A Christmas Carol", "The Chimes", "The Cricket on The Harth A Fairy Tale of Home", "The Battle of Life", "Dombey and Son", "The Haunted Man and the Ghost's Bargain", "A Child's Dream of a Star", "A Child's History of England", "Hard Times", "Going into Society", "Doctor Marigold", "Holiday Romance in Four Parts", "The Holly-Tree")
+Dick_id <- c(19337, 676, 821, 644, 42232, 699,1422, 1415, 1394)
+Dick <- gutenberg_download(Dick_id)
+
+Dick_tit<-c( "A Christmas Carol", "The Battle of Life", "Dombey and Son", "The Haunted Man and the Ghost's Bargain", "A Child's Dream of a Star", "A Child's History of England", "Going into Society", "Doctor Marigold", "The Holly-Tree")
 
 g <- gutenberg_works()
 
 Shak_books <- g[g$gutenberg_id %in% Shak_id, c("gutenberg_id","title")] 
 
+Dick_books <- g[g$gutenberg_id %in% Dick_id, c("gutenberg_id","title")] 
+
+
 Shak %<>% left_join(Shak_books) %>%
   mutate(gutenberg_id = NULL)
 
-Shakkk_bookkks <- Shak %>%
-  group_by(title) %>%
-  mutate(linenumber = row_number()) %>%
-  ungroup() %>%
-  unnest_tokens(word, text)
-
-Shak_book1 <- Shak %>%
-  filter(title == "The Taming of the Shrew") %>%
-  unnest_tokens(word, text) %>%
-  left_join(parts_of_speech) %>%
-  count(pos, sort = T) %>%
-  mutate(nn = n / sum(n))
-
-Shak_book1
-
-ggplot(Shak_book1) + 
-  geom_bar(aes(x = reorder(pos, -nn), nn, fill = reorder(pos, nn)), stat="identity") + 
-  coord_flip() + theme(legend.position = "none") + 
-  labs(y = "fraction", x = "POS")
+Dick %<>% left_join(Dick_books) %>%
+  mutate(gutenberg_id = NULL)
 
 
-
-Shak
-
+pos_freq<-function(titles, pos="noun")
+{
+  books<- Dick %>% filter(title == titles) %>%
+    unnest_tokens(word, text) %>%
+    left_join(parts_of_speech, relationship = "many-to-many") %>%
+    count(pos, sort = T) %>%
+    mutate(nn = n / sum(n))
+  
+  if(pos=="noun")
+    return(books$nn[1])
+  if(pos=="adjective")
+    return(books$nn[2])
+  if(pos=="Verb")
+    return(books$nn[3]+books$nn[5]+books$nn[7])#Verb występuje w 3 różnych formach, wrzucam w jedno
+  if(pos=="Adverb")
+    return(books$nn[4])
+  
+}
 
 
 
 
+df.noun <- data.frame(a = sapply(Dick_tit, pos_freq, pos="noun"), b = Dick_tit)
+df.adj <- data.frame(a = sapply(Dick_tit, pos_freq, pos="adjective"), b = Dick_tit)
+df.verb <- data.frame(a = sapply(Dick_tit, pos_freq, pos="Verb"), b = Dick_tit)
+df.adv <- data.frame(a = sapply(Dick_tit, pos_freq, pos="Adverb"), b = Dick_tit)
 
+
+df.noun <- df.noun %>% mutate(type = "noun")
+df.verb <- df.verb %>% mutate(type = "verb")
+df.adj <- df.adj %>% mutate(type = "adjective")
+df.adv <- df.adv %>% mutate(type = "adverb")
+
+df.all <- rbind(df.noun, df.verb, df.adj, df.adv)
+
+
+df.all
+
+
+g<-ggplot()+
+  geom_point(data=df.all, aes(x=b, y=a, color=type))+
+  theme(text = element_text(size=11), axis.text.x = element_text(angle=90, hjust=1))+
+  ggtitle("Frequency of POS, Dickens") +
+  xlab("title") + ylab("frequency")
+
+
+
+df.all
+g
 
 
 
