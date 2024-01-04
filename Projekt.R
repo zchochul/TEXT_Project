@@ -35,11 +35,11 @@ Dick <- gutenberg_download(Dick_id)
 Dick_tit<-c( "A Christmas Carol", "The Battle of Life", "Dombey and Son", "The Haunted Man and the Ghost's Bargain", "A Child's Dream of a Star", "A Child's History of England", "Going into Society", "Doctor Marigold", "The Holly-Tree")
 
 
-Doyle_id <- c(244, 2097, 903, 1661, 834, 2852, 139, 3289, 2350)
+Doyle_id <- c(244, 2097, 903, 2852, 139, 3289, 2350)
 
 Doyle <-gutenberg_download(Doyle_id)
 
-Doyle_tit <- c("A Study in Scarlet", "The Sign of the Four", "The White Company", "The Adventures of Sherlock Holmes", "The Memoirs of Sherlock Holmes", "The Hound of the Baskervilles", "The Lost World", "The Valley of Fear", "His Last Bow: An Epilogue of Sherlock Holmes")
+Doyle_tit <- c("A Study in Scarlet", "The Sign of the Four", "The White Company", "The Hound of the Baskervilles", "The Lost World", "The Valley of Fear", "His Last Bow: An Epilogue of Sherlock Holmes")
 
 
 Dumas_id <- c(1257, 1184, 1259, 2759, 2609, 2710, 965, 2681, 1608)
@@ -90,7 +90,7 @@ Dumas %<>% left_join(Dumas_books) %>%
 
 pos_freq<-function(titles, pos="noun")
 {
-  books<- Doyle %>% filter(title == titles) %>%
+  books<- Dick %>% filter(title == titles) %>%
     unnest_tokens(word, text) %>%
     left_join(parts_of_speech, relationship = "many-to-many") %>%
     count(pos, sort = T) %>%
@@ -107,7 +107,7 @@ pos_freq<-function(titles, pos="noun")
   
 }
 
-tit<-Doyle_tit
+tit<-Dick_tit
 
 
 df.noun <- data.frame(a = sapply(tit, pos_freq, pos="noun"), b = tit)
@@ -116,10 +116,10 @@ df.verb <- data.frame(a = sapply(tit, pos_freq, pos="Verb"), b = tit)
 df.adv <- data.frame(a = sapply(tit, pos_freq, pos="Adverb"), b = tit)
 
 
-df.noun <- df.noun %>% mutate(type = "noun")
-df.verb <- df.verb %>% mutate(type = "verb")
-df.adj <- df.adj %>% mutate(type = "adjective")
-df.adv <- df.adv %>% mutate(type = "adverb")
+df.noun <- df.noun %>% mutate(type = "noun") %>% mutate(b =ordered(b, levels = unique(b)))
+df.verb <- df.verb %>% mutate(type = "verb") %>% mutate(b =ordered(b, levels = unique(b)))
+df.adj <- df.adj %>% mutate(type = "adjective") %>% mutate(b =ordered(b, levels = unique(b)))
+df.adv <- df.adv %>% mutate(type = "adverb") %>% mutate(b =ordered(b, levels = unique(b)))
 
 df.all <- rbind(df.noun, df.verb, df.adj, df.adv)
 
@@ -131,7 +131,6 @@ g<-ggplot()+
   geom_point(data=df.all, aes(x=b, y=a, color=type))+
   theme(text = element_text(size=11), axis.text.x = element_text(angle=90, hjust=1))+
   ggtitle("Frequency of POS, Doyle") +
-  scale_x_discrete(c("A Study in Scarlet", "The Sign of the Four", "The White Company", "The Adventures of Sherlock Holmes", "The Memoirs of Sherlock Holmes", "The Hound of the Baskervilles", "The Lost World", "The Valley of Fear", "His Last Bow: An Epilogue of Sherlock Holmes"))+
   xlab("title") + ylab("frequency")
 
 
