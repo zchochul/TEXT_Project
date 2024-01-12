@@ -5,6 +5,7 @@ library(tidytext)
 library(dplyr)
 library(magrittr)
 library(ggplot2)
+library(corrplot)
 
 
 
@@ -13,84 +14,125 @@ pos <- parts_of_speech %>%
   mutate(nn = n / sum(n))
 
 
+Dick_id <- c(19337, 676, 821, 644, 42232, 699, 1422, 1415, 1394)
+Dick <- gutenberg_download(Dick_id)
+
+Dick_tit<-c( "A Christmas Carol", "The Battle of Life", "Dombey and Son", "The Haunted Man and the Ghost's Bargain", "A Child's Dream of a Star", "A Child's History of England", "Going into Society", "Doctor Marigold", "The Holly-Tree")
 
 
-pos_freq<-function(book)
-{
-    f<-book%>%left_join(pos) %>%
-    count(pos, sort = T) %>%
-    mutate(nn = n / sum(n))
-  
-  return(f)
-}
+Doyle_id <- c(244, 2097, 903, 2852, 139, 3289, 2350)
+
+Doyle <-gutenberg_download(Doyle_id)
+
+Doyle_tit <- c("A Study in Scarlet", "The Sign of the Four", "The White Company", "The Hound of the Baskervilles", "The Lost World", "The Valley of Fear", "His Last Bow: An Epilogue of Sherlock Holmes")
 
 
 
 
-
-Shak_id <- c(2245, 2239, 1777, 2243, 2242, 1785, 1781, 2265, 2267, 1791, 1794, 1795, 2268, 1797)
-Shak <- gutenberg_download(Shak_id)
-
-Shak_tit<-c("The Comedie of Errors", "Romeo and Juliet", "The Merchant of Venice", "A Midsummer Night's Dream", "The Trgaedy of julius Caesar", "The Merry Wives of Windsor", "The Tragedie of Hamlet", "Othello", "Alls Well That Ends Well", "The Tragedy of King Lear", "The Tragedy of Macbeth", "The Tragedie of Anthonie and Cleopathra", "The Tragedy of Coriolanius")
-
-Aust <- gutenberg_download(c(1212, 946, 42671, 141, 158))
-
-Aust_tit<-c("Love and Freindship", "Lady Susan", "Pride and Prejudice", "Mansfield Park", "Emma")
-
-Dick <- gutenberg_download(c(675, 19337, 653, 678, 676, 821, 644, 42232, 699, 786, 1422, 1415, 809, 1394))
-
-Dick_tit<-c("American Notes for General Circulation", "A Christmas Carol", "The Chimes", "The Cricket on The Harth A Fairy Tale of Home", "The Battle of Life", "Dombey and Son", "The Haunted Man and the Ghost's Bargain", "A Child's Dream of a Star", "A Child's History of England", "Hard Times", "Going into Society", "Doctor Marigold", "Holiday Romance in Four Parts", "The Holly-Tree")
 
 g <- gutenberg_works()
 
-Shak_books <- g[g$gutenberg_id %in% Shak_id, c("gutenberg_id","title")] 
+Dick_books <- g[g$gutenberg_id %in% Dick_id, c("gutenberg_id","title")] 
+
+
+Doyle_books <- g[g$gutenberg_id %in% Doyle_id, c("gutenberg_id","title")] 
+
+
+
 
 Shak %<>% left_join(Shak_books) %>%
   mutate(gutenberg_id = NULL)
 
-Shakkk_bookkks <- Shak %>%
-  group_by(title) %>%
-  mutate(linenumber = row_number()) %>%
-  ungroup() %>%
-  unnest_tokens(word, text)
-
-Shak_book1 <- Shak %>%
-  filter(title == "The Taming of the Shrew") %>%
-  unnest_tokens(word, text) %>%
-  left_join(parts_of_speech) %>%
-  count(pos, sort = T) %>%
-  mutate(nn = n / sum(n))
-
-Shak_book1
-
-ggplot(Shak_book1) + 
-  geom_bar(aes(x = reorder(pos, -nn), nn, fill = reorder(pos, nn)), stat="identity") + 
-  coord_flip() + theme(legend.position = "none") + 
-  labs(y = "fraction", x = "POS")
+Dick %<>% left_join(Dick_books) %>%
+  mutate(gutenberg_id = NULL)
 
 
+Aust %<>% left_join(Aust_books) %>%
+  mutate(gutenberg_id = NULL)
 
-Shak
+
+Doyle %<>% left_join(Doyle_books) %>%
+  mutate(gutenberg_id = NULL)
+
+
+Dumas %<>% left_join(Dumas_books) %>%
+  mutate(gutenberg_id = NULL)
 
 
 
 
 
+pos_freq<-function(titles, pos="noun")
+{
+  books<- Dick %>% filter(title == titles) %>% #zmienić na osobę którą się chce analizować
+    unnest_tokens(word, text) %>%
+    left_join(parts_of_speech, relationship = "many-to-many") %>%
+    count(pos, sort = T) %>%
+    mutate(nn = n / sum(n))
+  
+  if(pos=="noun")
+    return(books$nn[1])
+  if(pos=="adjective")
+    return(books$nn[2])
+  if(pos=="Verb")
+    return(books$nn[3]+books$nn[5]+books$nn[7])#Verb występuje w 3 różnych formach, wrzucam w jedno
+  if(pos=="Adverb")
+    return(books$nn[4])
+  
+}
+
+tit<-Dick_tit#lista tytułów analizowanej osoby
 
 
+df.noun <- data.frame(a = sapply(tit, pos_freq, pos="noun"), b = tit)
+df.adj <- data.frame(a = sapply(tit, pos_freq, pos="adjective"), b = tit)
+df.verb <- data.frame(a = sapply(tit, pos_freq, pos="Verb"), b = tit)
+df.adv <- data.frame(a = sapply(tit, pos_freq, pos="Adverb"), b = tit)
+
+
+df.noun <- df.noun %>% mutate(type = "noun") %>% mutate(b =ordered(b, levels = unique(b)))
+df.verb <- df.verb %>% mutate(type = "verb") %>% mutate(b =ordered(b, levels = unique(b)))
+df.adj <- df.adj %>% mutate(type = "adjective") %>% mutate(b =ordered(b, levels = unique(b)))
+df.adv <- df.adv %>% mutate(type = "adverb") %>% mutate(b =ordered(b, levels = unique(b)))
+
+df.all <- rbind(df.noun, df.verb, df.adj, df.adv)
+
+
+df.all
+
+
+g<-ggplot()+
+  geom_point(data=df.all, aes(x=b, y=a, color=type))+
+  theme(text = element_text(size=11), axis.text.x = element_text(angle=90, hjust=1))+
+  ggtitle("Frequency of POS, Dickens") + #zmienić nazwisko
+  xlab("title") + ylab("frequency")
+
+
+g
+
+
+kor <- cor(df.all)
+
+df.all
+
+
+do_korelacji<-data.frame(
+  noun = df.noun$a,
+  verb = df.verb$a,
+  adj = df.adj$a,
+  adv = df.adv$a
+  )
+
+M <- cor(do_korelacji)
+
+
+corrplot(M, method = 'number') # colorful number
 
 
 #Przyszłość
 #Zapisać tytuły w wektorze, chronologicznie - zrobione
 #Zrobić funkcję która będzie wypluwała częstość danej części mowy (argument: lista książek, zwraca: df)
 #Napisać funkcję, która będzie robiła przebiegi dla konkretnej części mowy dla kilku autorów
-
-
-
-
-
-
-
 
 
 
